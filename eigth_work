@@ -1,0 +1,137 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Tue Nov 10 17:53:38 2020
+
+@author: ASUS
+"""
+import json,os,time
+from tqdm import tqdm
+from memory_profiler import profile as profile_memory
+from line_profiler import LineProfiler
+from functools import wraps
+from playsound import playsound
+
+
+
+class FileNotFoundError(FileNotFoundError):
+    def __init__(self,in_or_out):
+        if in_or_out==1:
+            print("InputFileFoundError!")
+            print("Exiting.........")
+            os._exit(0)
+        if in_or_out==2:
+            print("OutputFileNotFoundError!")
+            time.sleep(1)
+            
+def isfile(file):
+    if (not os.path.isfile(file[0])) :
+        raise FileNotFoundError(1)
+    if (not os.path.isfile(file[1])):
+        raise FileNotFoundError(2)       
+
+class Test:
+    def __init__(self,*args):
+        self.file=args[0]
+        self.storefile=args[1]
+    def func(self):
+        '''
+        @func:统计文本中每个单词或符号出现了多少次，并按键值对存储在json文件中
+        '''
+        letter_dic={}
+        with open (self.file,"r") as rfile:
+            data=tqdm(list(rfile.read()),desc='读取中')
+            for i in data:
+                if i==' ' or i=='\n': continue
+                if i not in letter_dic:
+                    letter_dic[i]=1
+                else:
+                    letter_dic[i]+=1
+        with open(self.storefile,'w') as wfile:
+            letter_item=list(letter_dic.items())
+            for i in tqdm(range(len(letter_dic)),desc='储存中'):
+                json.dump(letter_item[i],wfile)
+                time.sleep(0.01)
+        print('\nletter_dic:',letter_dic)
+        print('\nFunc Finish.\n')
+        return letter_dic
+            
+
+def tryfun(func):
+    @wraps(func)
+    def wrapper(*args):
+        try:
+            isfile(args)
+        except FileNotFoundError as fne: 
+            fne
+        return func()
+    return wrapper
+
+def music_remind(func):
+    @wraps(func)
+    def wrapper(musicfile):
+        res=func()
+        print('提示：运行结束.')
+        playsound(musicfile)
+        return res
+    return wrapper
+
+
+class Decorator:
+    '''
+    @class:__init__(self,func,*args),Check(self),memory(self),line(self),remind(self)
+        装饰器类
+    @func:
+        Check():使用'路径检查装饰器'
+        memeory():使用'memeory_profile'装饰器
+        line():使用'line_profile'装饰器
+        remind():使用'运行结束提示音'装饰器
+            
+    '''
+    def __init__(self,func,*args):
+        self.func=func
+        self.file=args[0]
+        self.storefile=args[1]
+        self.musicfile=args[2]
+        
+    def Check(self):
+        check_wrapper=tryfun(self.func) 
+        check_wrapper(self.file,self.storefile)
+        return 0
+    
+    def memory(self):
+        mp_wrapper=profile_memory(self.func)
+        mp_wrapper()
+        return 0
+    
+    def line(self):
+        lp=LineProfiler()
+        lp_wrapper=lp(self.func)
+        lp_wrapper()
+        lp.print_stats()
+        return 0
+    
+    def remind(self):
+        remind_wrapper=music_remind(self.func)
+        remind_wrapper(self.musicfile)
+        return 0
+
+def main():
+    file='G:\\大三上\\现代程序设计\\第八周作业\\tabletalk.txt'
+    storefile="C:\\Users\\ASUS\\Desktop\\data.json"
+    musicfile='G:\\clock.mp3'
+    func=Test(file,storefile).func
+    dec=Decorator(func, file,storefile,musicfile)
+    print('Check File:')
+    time.sleep(1)
+    dec.Check()
+    print('Check Memory_profile:')
+    time.sleep(1)
+    dec.memory()
+    print('Check Line_profile:')
+    time.sleep(1)
+    dec.line()
+    print('Check Playsound:')
+    time.sleep(1)
+    dec.remind()
+if __name__ =='__main__':
+    main()
